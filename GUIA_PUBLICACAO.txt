@@ -1,0 +1,22 @@
+GUIA RÁPIDO — PUBLICAÇÃO
+
+1. SUPABASE
+Execute o ficheiro: supabase/schema.sql
+Confirme as tabelas: app_users, clients, production_records
+
+2. GITHUB
+Envie todos os ficheiros deste pacote para o repositório vincos-e-agulha.
+
+3. VERCEL
+Add New Project > Importar GitHub > vincos-e-agulha
+Framework: Vite
+Build command: npm run build
+Output directory: dist
+
+Environment Variables:
+VITE_SUPABASE_URL = Project URL do Supabase
+VITE_SUPABASE_ANON_KEY = Publishable key do Supabase
+
+4. PRIMEIRO ACESSO
+Código: GER001
+Senha: 123456
