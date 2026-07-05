@@ -1,0 +1,20 @@
+INSTRUÇÕES PARA ATUALIZAR O REPOSITÓRIO
+
+1. Extraia este ZIP.
+2. Copie TODOS os ficheiros extraídos.
+3. Cole dentro da pasta do projeto antigo no VS Code:
+   Vincos_Agulha_Projeto_Completo_V1
+
+4. Substitua os ficheiros existentes.
+
+5. No terminal do VS Code, dentro da pasta do projeto antigo, execute:
+
+git status
+git add .
+git commit -m "Versao final funcional"
+git push
+
+6. Aguarde o novo deploy automático na Vercel.
+
+7. Abra:
+https://vincos-e-agulha.vercel.app/
