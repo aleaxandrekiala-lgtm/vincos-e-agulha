@@ -1,1 +1,49 @@
-:root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--primary:#1d4ed8;--dark:#111827;--danger:#dc2626;--border:#e5e7eb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}header{background:linear-gradient(135deg,#111827,#1f2937);color:white;padding:24px;text-align:center}header h1{margin:6px 0 2px;font-size:32px}header p{margin:0;color:#d1d5db}.logo{font-size:42px;font-weight:800;line-height:1}main{max-width:1180px;margin:20px auto;padding:0 14px}.card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}.login{max-width:520px;margin:20px auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}label{display:block;margin-top:12px;font-weight:700}input,select,textarea,button{width:100%;padding:12px;margin-top:6px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}button{border:none;color:#fff;background:var(--primary);font-weight:700;cursor:pointer}button:hover{background:#1e40af}.secondary{background:#374151}.danger{background:var(--danger)}.small-btn{width:auto;padding:8px 10px;margin:3px;font-size:13px}.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.tabs button{width:auto;background:#374151;padding:10px 13px}.stat{font-size:32px;color:var(--primary);font-weight:800}.muted{color:var(--muted);font-size:14px}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border-bottom:1px solid var(--border);padding:10px;text-align:left;vertical-align:top}th{background:#f8fafc}.success{padding:12px;background:#dcfce7;color:#166534;border-radius:10px;margin-top:12px}.warning{padding:12px;background:#fef3c7;color:#92400e;border-radius:10px;margin-top:12px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}.footer{text-align:center;color:#6b7280;font-size:13px;margin:18px 0}
+:root {
+  --bg:#f3f4f6;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --primary:#1d4ed8;
+  --primary-dark:#1e40af;
+  --dark:#111827;
+  --danger:#dc2626;
+  --border:#e5e7eb;
+  --ok:#166534;
+  --warn:#92400e;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#111827,#1f2937);color:white;padding:24px;text-align:center}
+header h1{margin:6px 0 2px;font-size:32px}
+header p{margin:0;color:#d1d5db}
+.logo{font-size:42px;font-weight:800;line-height:1}
+main{max-width:1180px;margin:20px auto;padding:0 14px}
+.card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.login{max-width:520px;margin:20px auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1}
+label{display:block;margin-top:12px;font-weight:700}
+input,select,textarea,button{width:100%;padding:12px;margin-top:6px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px}
+button{border:none;color:#fff;background:var(--primary);font-weight:700;cursor:pointer}
+button:hover{background:var(--primary-dark)}
+.secondary{background:#374151}
+.danger{background:var(--danger)}
+.small-btn{width:auto;padding:8px 10px;margin:3px;font-size:13px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tabs button{width:auto;background:#374151;padding:10px 13px}
+.stat{font-size:32px;color:var(--primary);font-weight:800}
+.muted{color:var(--muted);font-size:14px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{border-bottom:1px solid var(--border);padding:10px;text-align:left;vertical-align:top}
+th{background:#f8fafc}
+.success{padding:12px;background:#dcfce7;color:var(--ok);border-radius:10px;margin-top:12px}
+.warning{padding:12px;background:#fef3c7;color:var(--warn);border-radius:10px;margin-top:12px}
+.error{padding:12px;background:#fee2e2;color:#991b1b;border-radius:10px;margin-top:12px}
+.footer{text-align:center;color:#6b7280;font-size:13px;margin:18px 0}
+@media (max-width:640px){
+  header h1{font-size:26px}
+  .tabs button{width:100%}
+  .row{display:block}
+}

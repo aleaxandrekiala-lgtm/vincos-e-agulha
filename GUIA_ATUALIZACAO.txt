@@ -1,0 +1,18 @@
+COMO ATUALIZAR A APLICAÇÃO NA VERCEL
+
+1. Extraia este ZIP.
+2. Copie todos os ficheiros desta pasta para a pasta do projeto no VS Code/GitHub.
+3. Substitua os ficheiros antigos.
+4. No terminal do VS Code execute:
+
+git add .
+git commit -m "Versao 2 funcional"
+git push
+
+5. A Vercel fará novo deploy automaticamente.
+
+6. Se ainda não configurou as variáveis:
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+
+Adicione-as em Vercel > Project Settings > Environment Variables.
