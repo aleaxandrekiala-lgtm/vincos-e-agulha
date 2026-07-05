@@ -1,28 +1,24 @@
-# Vincos & Agulha — Versão 1.0 RC
+# Vincos & Agulha — V1.1 Interface Profissional
 
 Inclui:
-- Encomendas.
-- Número automático de encomenda.
-- Estados simples:
-  - Recebido do cliente
-  - Em produção
-  - Pronto para entrega
-  - Entregue ao cliente
-- Motorista: apenas recebido do cliente / entregue ao cliente.
-- Funcionário: regista cliente + número total de peças.
-- Cliente: vê estado e histórico.
-- Gerente: vê tudo.
-- QR Code preparado.
-- Botão imprimir etiqueta em papel/PDF.
-- Campos preparados para impressora de etiquetas no futuro.
+- Menu lateral profissional.
+- Centro de Operações.
+- Clientes com pesquisa.
+- Produção rápida.
+- Motoristas/rotas.
+- Comunicação WhatsApp.
+- Relatórios.
+- Administração.
+- Histórico.
+- Etiquetas com QR Code preparado.
 
 ## Antes de publicar
 Execute no Supabase:
-supabase/schema_v1_rc.sql
+supabase/schema_v1_1.sql
 
 ## Publicar
 Copie os ficheiros para o projeto local e execute:
 npm install
 git add .
-git commit -m "Versao 1 RC encomendas QR"
+git commit -m "Versao 1.1 interface profissional"
 git push

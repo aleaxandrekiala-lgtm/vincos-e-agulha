@@ -1,7 +1,7 @@
 {
   "name": "vincos-agulha",
   "private": true,
-  "version": "1.0.0-rc",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -14,8 +14,8 @@
     "react": "latest",
     "react-dom": "latest",
     "@supabase/supabase-js": "latest",
-    "mammoth": "latest",
-    "qrcode": "latest"
+    "qrcode": "latest",
+    "mammoth": "latest"
   },
   "devDependencies": {}
 }

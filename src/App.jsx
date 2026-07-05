@@ -1,4 +1,4 @@
-import React,{useEffect,useState}from'react';
+import React,{useEffect,useMemo,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{createClient}from'@supabase/supabase-js';
 import QRCode from'qrcode';
@@ -9,127 +9,122 @@ const supabaseKey=import.meta.env.VITE_SUPABASE_ANON_KEY;
 const hasConfig=Boolean(supabaseUrl&&supabaseKey);
 const supabase=hasConfig?createClient(supabaseUrl,supabaseKey):null;
 
-const statusLabel={
-  recebido_cliente:'Recebido do cliente',
-  em_producao:'Em produção',
-  pronto_entrega:'Pronto para entrega',
-  entregue_cliente:'Entregue ao cliente'
-};
-const statusBadge={
-  recebido_cliente:'badge b1',
-  em_producao:'badge b2',
-  pronto_entrega:'badge b4',
-  entregue_cliente:'badge b3'
-};
+const statusLabel={recebido_cliente:'Recebido do cliente',em_producao:'Em produção',pronto_entrega:'Pronto para entrega',entregue_cliente:'Entregue ao cliente'};
+const statusBadge={recebido_cliente:'badge b1',em_producao:'badge b2',pronto_entrega:'badge b4',entregue_cliente:'badge b3'};
+const dias=[['segunda','Segunda'],['terca','Terça'],['quarta','Quarta'],['quinta','Quinta'],['sexta','Sexta'],['sabado','Sábado'],['domingo','Domingo']];
+const diaHoje=()=>['domingo','segunda','terca','quarta','quinta','sexta','sabado'][new Date().getDay()];
+const diaLabel=v=>dias.find(d=>d[0]===v)?.[1]||'-';
 
-function Header(){return <header><div className="logo">V&A</div><h1>Vincos & Agulha</h1><p>Versão 1.0 RC — Produção e encomendas</p></header>}
-function MissingConfig(){return <><Header/><main><section className="card login"><h2>Configuração em falta</h2><div className="error">Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel.</div></section></main></>}
+function phoneToWhatsapp(phone){const digits=String(phone||'').replace(/\D/g,'');const nine=digits.match(/9\d{8}/)?.[0];return nine?'351'+nine:''}
+function whatsappUrl(phone,msg){const n=phoneToWhatsapp(phone);return n?`https://wa.me/${n}?text=${encodeURIComponent(msg)}`:''}
+function wazeUrl(c){return `https://waze.com/ul?q=${encodeURIComponent(c.address||c.name)}&navigate=yes`}
 
-function Login({onLogin}){const[code,setCode]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState('');
-async function submit(){setError('');const{data,error}=await supabase.rpc('login_user',{p_code:code,p_password:password});if(error){setError(error.message);return}if(!data||!data.length){setError('Código ou senha incorretos.');return}onLogin(data[0])}
-return <section className="card login"><h2>Entrar</h2><label>Código</label><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/><label>Senha</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)}/><button onClick={submit}>Entrar</button><p className="muted">Gerente inicial: GER001 / 123456</p>{error&&<div className="warning">{error}</div>}</section>}
+function Login({onLogin}){
+ const[code,setCode]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState('');
+ async function submit(){setError('');const{data,error}=await supabase.rpc('login_user',{p_code:code,p_password:password});if(error){setError(error.message);return}if(!data?.length){setError('Código ou senha incorretos.');return}onLogin(data[0])}
+ return <div className="login-shell"><div className="login-card"><div className="brand"><div className="logo">V&A</div><h1>Vincos & Agulha</h1><p>Gestão operacional</p></div><label>Código</label><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/><label>Senha</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)}/><button onClick={submit}>Entrar</button><p className="muted">Gerente inicial: GER001 / 123456</p>{error&&<div className="warning">{error}</div>}</div></div>
+}
+function MissingConfig(){return <div className="login-shell"><div className="login-card"><h2>Configuração em falta</h2><div className="error">Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel.</div></div></div>}
 
 function App(){
-  const[user,setUser]=useState(null),[tab,setTab]=useState('dashboard'),[clients,setClients]=useState([]),[orders,setOrders]=useState([]),[events,setEvents]=useState([]);
-  async function load(){
-    const[c,o,e]=await Promise.all([
-      supabase.from('clients').select('*').order('client_number'),
-      supabase.from('orders').select('*').order('created_at',{ascending:false}),
-      supabase.from('order_events').select('*').order('created_at',{ascending:false})
-    ]);
-    setClients(c.data||[]);setOrders(o.data||[]);setEvents(e.data||[]);
-  }
-  useEffect(()=>{if(user)load()},[user]);
-  if(!hasConfig)return <MissingConfig/>;
-  if(!user)return <><Header/><main><Login onLogin={setUser}/></main></>;
-  const manager=user.role==='gerente', staff=user.role==='funcionario'||manager, driver=user.role==='motorista', client=user.role==='cliente';
-  return <><Header/><main><section className="card"><b>Sessão:</b> {user.name} | <b>Perfil:</b> {user.role}<button className="danger" onClick={()=>setUser(null)} style={{marginTop:10}}>Sair</button></section>
-  <div className="tabs">
-    {manager&&<button onClick={()=>setTab('dashboard')}>Dashboard</button>}
-    {staff&&<button onClick={()=>setTab('producao')}>Produção</button>}
-    {driver&&<button onClick={()=>setTab('motorista')}>Motorista</button>}
-    {client&&<button onClick={()=>setTab('cliente')}>Área do Cliente</button>}
-    {manager&&<button onClick={()=>setTab('historico')}>Histórico</button>}
-  </div>
-  {tab==='dashboard'&&manager&&<Dashboard orders={orders}/>}
-  {tab==='producao'&&staff&&<Production user={user} clients={clients} orders={orders} load={load}/>}
-  {tab==='motorista'&&driver&&<DriverPanel user={user} clients={clients} orders={orders} load={load}/>}
-  {tab==='cliente'&&client&&<ClientPortal user={user} orders={orders}/>}
-  {tab==='historico'&&manager&&<History orders={orders} events={events}/>}
-  <div className="footer">Vincos & Agulha — V1.0 RC</div></main></>
+ const[user,setUser]=useState(null),[tab,setTab]=useState('dashboard'),[clients,setClients]=useState([]),[orders,setOrders]=useState([]),[events,setEvents]=useState([]),[users,setUsers]=useState([]),[commLogs,setCommLogs]=useState([]);
+ async function load(){
+   const[c,o,e,u,l]=await Promise.all([
+     supabase.from('clients').select('*').order('client_number'),
+     supabase.from('orders').select('*').order('created_at',{ascending:false}),
+     supabase.from('order_events').select('*').order('created_at',{ascending:false}).limit(100),
+     supabase.from('app_users').select('id,name,access_code,role,active,client_id').order('created_at',{ascending:false}),
+     supabase.from('communication_logs').select('*').order('created_at',{ascending:false}).limit(20)
+   ]);
+   setClients(c.data||[]);setOrders(o.data||[]);setEvents(e.data||[]);setUsers(u.data||[]);setCommLogs(l.data||[]);
+ }
+ useEffect(()=>{if(user)load()},[user]);
+ if(!hasConfig)return <MissingConfig/>;
+ if(!user)return <Login onLogin={setUser}/>;
+ const manager=user.role==='gerente', staff=user.role==='funcionario'||manager, driver=user.role==='motorista', client=user.role==='cliente';
+ const nav=[
+  manager&&['dashboard','🏠 Dashboard'],
+  manager&&['clientes','👥 Clientes'],
+  staff&&['producao','📦 Produção'],
+  (manager||driver)&&['motoristas','🚚 Motoristas'],
+  manager&&['comunicacao','💬 Comunicação'],
+  manager&&['relatorios','📈 Relatórios'],
+  client&&['cliente','👤 Área do Cliente'],
+  manager&&['historico','🕓 Histórico'],
+  manager&&['admin','⚙ Administração']
+ ].filter(Boolean);
+ return <div className="app"><aside className="sidebar"><div className="logo">V&A</div><h2>Vincos & Agulha</h2><p>V1.1 — ERP Operacional</p><div className="nav">{nav.map(n=><button key={n[0]} className={tab===n[0]?'active':''} onClick={()=>setTab(n[0])}>{n[1]}</button>)}</div></aside><section className="main"><div className="topbar"><div><h1>{nav.find(n=>n[0]===tab)?.[1]||'Vincos & Agulha'}</h1><div className="userbox">Sessão: <b>{user.name}</b> | Perfil: <b>{user.role}</b></div></div><button className="logout" onClick={()=>setUser(null)}>Sair</button></div><div className="content">
+ {tab==='dashboard'&&manager&&<Dashboard clients={clients} orders={orders}/>}
+ {tab==='clientes'&&manager&&<Clients clients={clients} orders={orders}/>}
+ {tab==='producao'&&staff&&<Production user={user} clients={clients} orders={orders} load={load}/>}
+ {tab==='motoristas'&&(manager||driver)&&<Drivers user={user} clients={clients} orders={orders} load={load}/>}
+ {tab==='comunicacao'&&manager&&<Communication user={user} clients={clients} logs={commLogs} load={load}/>}
+ {tab==='relatorios'&&manager&&<Reports clients={clients} orders={orders}/>}
+ {tab==='cliente'&&client&&<ClientPortal user={user} orders={orders}/>}
+ {tab==='historico'&&manager&&<History orders={orders} events={events}/>}
+ {tab==='admin'&&manager&&<Admin users={users} clients={clients}/>}
+ </div></section></div>
 }
 
-function Dashboard({orders}){
-  const today=new Date().toISOString().slice(0,10);
-  const todayOrders=orders.filter(o=>o.created_at?.slice(0,10)===today);
-  return <section className="card"><h2>Dashboard</h2><div className="grid"><Stat title="Encomendas hoje" value={todayOrders.length}/><Stat title="Peças hoje" value={todayOrders.reduce((s,o)=>s+Number(o.pieces||0),0)}/><Stat title="Em produção" value={orders.filter(o=>o.status==='em_producao').length}/><Stat title="Prontas" value={orders.filter(o=>o.status==='pronto_entrega').length}/><Stat title="Entregues" value={orders.filter(o=>o.status==='entregue_cliente').length}/></div><h3>Últimas encomendas</h3><OrdersTable orders={orders.slice(0,15)} manager/></section>
+function Stat({title,value}){return <div className="card"><div className="stat-title">{title}</div><div className="stat">{value}</div></div>}
+
+function Dashboard({clients,orders}){
+ const today=new Date().toISOString().slice(0,10), day=diaHoje();
+ const todayOrders=orders.filter(o=>o.created_at?.slice(0,10)===today);
+ const todayClients=clients.filter(c=>c.active&&(c.pickup_day===day||c.delivery_day===day));
+ const alerts=[];
+ if(todayClients.length && todayOrders.length===0) alerts.push('Ainda não existem encomendas registadas hoje.');
+ orders.filter(o=>o.status==='em_producao').slice(0,3).forEach(o=>alerts.push(`${o.order_number} está em produção.`));
+ return <><div className="section-title"><h2>Centro de Operações</h2><span className="badge">{new Date().toLocaleDateString('pt-PT')}</span></div><div className="grid"><Stat title="Clientes previstos hoje" value={todayClients.length}/><Stat title="Encomendas hoje" value={todayOrders.length}/><Stat title="Peças hoje" value={todayOrders.reduce((s,o)=>s+Number(o.pieces||0),0)}/><Stat title="Em produção" value={orders.filter(o=>o.status==='em_producao').length}/><Stat title="Prontas" value={orders.filter(o=>o.status==='pronto_entrega').length}/><Stat title="Entregues" value={orders.filter(o=>o.status==='entregue_cliente').length}/></div><div className="row"><div className="card"><h3>Últimas encomendas</h3><OrdersTable orders={orders.slice(0,10)} manager/></div><div className="card"><h3>Alertas operacionais</h3>{alerts.length?alerts.map((a,i)=><div key={i} className="warning">{a}</div>):<div className="success">Sem alertas críticos.</div>}</div></div></>
 }
-function Stat({title,value}){return <div className="card"><div className="muted">{title}</div><div className="stat">{value}</div></div>}
+
+function Clients({clients,orders}){
+ const[q,setQ]=useState(''),[day,setDay]=useState('');
+ const filtered=clients.filter(c=>(!day||c.pickup_day===day||c.delivery_day===day)&&(!q||[c.client_number,c.name,c.phone,c.address,c.zone].some(x=>String(x||'').toLowerCase().includes(q.toLowerCase()))));
+ return <div className="card"><div className="section-title"><h2>Clientes</h2><span className="badge">{filtered.length} clientes</span></div><div className="row"><input className="search" placeholder="Pesquisar cliente, nº, telefone ou morada" value={q} onChange={e=>setQ(e.target.value)}/><select value={day} onChange={e=>setDay(e.target.value)}><option value="">Todos os dias</option>{dias.map(d=><option key={d[0]} value={d[0]}>{d[1]}</option>)}</select></div><div className="scroll"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Telefone</th><th>Zona</th><th>Recolha</th><th>Entrega</th><th>Encomendas</th></tr></thead><tbody>{filtered.map(c=><tr key={c.id}><td>{c.client_number}</td><td>{c.name}<div className="muted">{c.address}</div></td><td>{c.phone}</td><td>{c.zone}</td><td>{diaLabel(c.pickup_day)}</td><td>{diaLabel(c.delivery_day)}</td><td>{orders.filter(o=>o.client_id===c.id).length}</td></tr>)}</tbody></table></div></div>
+}
 
 function Production({user,clients,orders,load}){
-  const[clientId,setClientId]=useState(''),[pieces,setPieces]=useState(''),[notes,setNotes]=useState(''),[msg,setMsg]=useState('');
-  async function create(){
-    setMsg('');
-    if(!clientId)return setMsg('Selecione o cliente.');
-    if(!Number(pieces)||Number(pieces)<1)return setMsg('Indique o número total de peças.');
-    const{error}=await supabase.rpc('create_order',{p_user_id:user.id,p_client_id:clientId,p_pieces:Number(pieces),p_notes:notes});
-    if(error){setMsg(error.message);return}
-    setClientId('');setPieces('');setNotes('');setMsg('Encomenda criada e colocada em produção.');load();
-  }
-  async function setStatus(orderId,status){
-    const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:orderId,p_new_status:status,p_notes:null});
-    if(error)return alert(error.message);load();
-  }
-  return <section className="card"><h2>Produção</h2><div className="row"><div><label>Cliente</label><select value={clientId} onChange={e=>setClientId(e.target.value)}><option value="">Selecionar cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.client_number} - {c.name}</option>)}</select></div><div><label>Número total de peças</label><input type="number" value={pieces} onChange={e=>setPieces(e.target.value)}/></div></div><label>Observações</label><textarea value={notes} onChange={e=>setNotes(e.target.value)}/><button onClick={create}>Guardar encomenda</button>{msg&&<div className={msg.includes('criada')?'success':'warning'}>{msg}</div>}<h3>Encomendas em produção/prontas</h3><div className="scroll"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>['em_producao','pronto_entrega'].includes(o.status)).map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]}</span></td><td>{o.status==='em_producao'&&<button className="small-btn ok" onClick={()=>setStatus(o.id,'pronto_entrega')}>Pronto para entrega</button>}<PrintLabelButton order={o}/></td></tr>)}</tbody></table></div></section>
+ const[clientId,setClientId]=useState(''),[pieces,setPieces]=useState(''),[notes,setNotes]=useState(''),[msg,setMsg]=useState(''),[q,setQ]=useState('');
+ const activeClients=clients.filter(c=>!q||[c.client_number,c.name,c.phone].some(x=>String(x||'').toLowerCase().includes(q.toLowerCase())));
+ async function create(){setMsg('');if(!clientId)return setMsg('Selecione o cliente.');if(!Number(pieces)||Number(pieces)<1)return setMsg('Indique o número total de peças.');const{error}=await supabase.rpc('create_order',{p_user_id:user.id,p_client_id:clientId,p_pieces:Number(pieces),p_notes:notes});if(error){setMsg(error.message);return}setClientId('');setPieces('');setNotes('');setMsg('Encomenda criada em produção.');load()}
+ async function setStatus(id,status){const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:id,p_new_status:status,p_notes:null});if(error)return alert(error.message);load()}
+ return <><div className="card"><h2>Registo rápido de produção</h2><div className="row"><input placeholder="Pesquisar cliente antes de selecionar" value={q} onChange={e=>setQ(e.target.value)}/><select value={clientId} onChange={e=>setClientId(e.target.value)}><option value="">Selecionar cliente</option>{activeClients.slice(0,80).map(c=><option key={c.id} value={c.id}>{c.client_number} - {c.name}</option>)}</select><input type="number" placeholder="Nº peças" value={pieces} onChange={e=>setPieces(e.target.value)}/></div><label>Observações</label><textarea value={notes} onChange={e=>setNotes(e.target.value)}/><button onClick={create}>Guardar encomenda</button>{msg&&<div className={msg.includes('criada')?'success':'warning'}>{msg}</div>}</div><div className="card"><h2>Produção atual</h2><div className="scroll"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>['em_producao','pronto_entrega'].includes(o.status)).map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]}</span></td><td>{o.status==='em_producao'&&<button className="small-btn ok" onClick={()=>setStatus(o.id,'pronto_entrega')}>Pronto para entrega</button>}<PrintLabelButton order={o}/></td></tr>)}</tbody></table></div></div></>
 }
 
-function DriverPanel({user,clients,orders,load}){
-  const myClients=clients.filter(c=>c.driver_id===user.id);
-  const pendingPickup=myClients.map(c=>({client:c,order:orders.find(o=>o.client_id===c.id&&o.status!=='entregue_cliente')})).filter(x=>!x.order);
-  const ready=orders.filter(o=>o.status==='pronto_entrega'&&myClients.some(c=>c.id===o.client_id));
-  async function createPickup(client){
-    const{error}=await supabase.from('orders').insert({
-      order_number:`TEMP-${Date.now()}`,
-      tracking_code:`TEMP-${Date.now()}`,
-      qr_code:`TEMP-${Date.now()}`,
-      client_id:client.id,
-      client_number:client.client_number,
-      client_name:client.name,
-      driver_id:user.id,
-      driver_name:user.name,
-      pieces:0,
-      status:'recebido_cliente',
-      picked_up_at:new Date().toISOString()
-    });
-    if(error)return alert(error.message);load();
-  }
-  async function deliver(order){
-    const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:order.id,p_new_status:'entregue_cliente',p_notes:null});
-    if(error)return alert(error.message);load();
-  }
-  return <section className="card"><h2>Motorista</h2><div className="grid"><Stat title="Por recolher" value={pendingPickup.length}/><Stat title="Para entregar" value={ready.length}/></div><h3>Recolhas</h3><div className="scroll"><table><thead><tr><th>Cliente</th><th>Morada</th><th>Ação</th></tr></thead><tbody>{pendingPickup.map(({client})=><tr key={client.id}><td>{client.client_number} - {client.name}</td><td>{client.address}</td><td><button className="small-btn ok" onClick={()=>createPickup(client)}>Recebido do cliente</button></td></tr>)}</tbody></table></div><h3>Entregas</h3><div className="scroll"><table><thead><tr><th>Encomenda</th><th>Cliente</th><th>Peças</th><th>Ação</th></tr></thead><tbody>{ready.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><button className="small-btn ok" onClick={()=>deliver(o)}>Entregue ao cliente</button></td></tr>)}</tbody></table></div></section>
+function Drivers({user,clients,orders,load}){
+ const driver=user.role==='motorista'; const day=diaHoje();
+ const myClients=driver?clients.filter(c=>c.driver_id===user.id):clients.filter(c=>c.pickup_day===day||c.delivery_day===day);
+ const ready=orders.filter(o=>o.status==='pronto_entrega'&&(!driver||myClients.some(c=>c.id===o.client_id)));
+ async function markPickup(c){const temp=`TEMP-${Date.now()}`;const{error}=await supabase.from('orders').insert({order_number:temp,tracking_code:temp,qr_code:temp,client_id:c.id,client_number:c.client_number,client_name:c.name,driver_id:user.id,driver_name:user.name,pieces:0,status:'recebido_cliente',picked_up_at:new Date().toISOString()});if(error)return alert(error.message);load()}
+ async function deliver(o){const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:o.id,p_new_status:'entregue_cliente',p_notes:null});if(error)return alert(error.message);load()}
+ return <div className="card"><h2>{driver?'A minha rota':'Motoristas e rotas'}</h2><div className="grid"><Stat title="Clientes do dia" value={myClients.length}/><Stat title="Para entregar" value={ready.length}/></div><h3>Clientes</h3><div className="scroll"><table><thead><tr><th>Cliente</th><th>Morada</th><th>Ações</th></tr></thead><tbody>{myClients.map(c=><tr key={c.id}><td>{c.client_number} - {c.name}</td><td>{c.address}</td><td><button className="small-btn secondary" onClick={()=>window.open(wazeUrl(c),'_blank')}>Waze</button>{driver&&<button className="small-btn ok" onClick={()=>markPickup(c)}>Recebido do cliente</button>}</td></tr>)}</tbody></table></div><h3>Entregas prontas</h3><div className="scroll"><table><tbody>{ready.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces} peças</td><td>{driver&&<button className="small-btn ok" onClick={()=>deliver(o)}>Entregue ao cliente</button>}</td></tr>)}</tbody></table></div></div>
 }
 
-function ClientPortal({user,orders}){
-  const mine=orders.filter(o=>o.client_id===user.client_id);
-  return <section className="card"><h2>Área do Cliente</h2><OrdersTable orders={mine}/></section>
+function Communication({user,clients,logs,load}){
+ const[day,setDay]=useState(diaHoje()),[target,setTarget]=useState('todos'),[message,setMessage]=useState('Bom dia. A Vincos & Agulha informa que hoje está previsto o seu serviço de recolha/entrega. Obrigado.'),[msg,setMsg]=useState('');
+ const recipients=clients.filter(c=>c.active&&(target==='recolha'?c.pickup_day===day:target==='entrega'?c.delivery_day===day:c.pickup_day===day||c.delivery_day===day));
+ async function saveLog(){await supabase.from('communication_logs').insert({sent_by:user.id,channel:'whatsapp',message_type:'manual',week_day:day,target_type:target,total_clients:recipients.length,message});load()}
+ async function openAll(){await saveLog();const links=recipients.map(c=>whatsappUrl(c.phone,message.replaceAll('{cliente}',c.name))).filter(Boolean);setMsg(`${links.length} mensagens preparadas. Se o navegador bloquear janelas, use os botões individuais.`);links.slice(0,8).forEach((l,i)=>setTimeout(()=>window.open(l,'_blank'),i*400))}
+ return <div className="card"><h2>Comunicação</h2><div className="row"><select value={day} onChange={e=>setDay(e.target.value)}>{dias.map(d=><option value={d[0]} key={d[0]}>{d[1]}</option>)}</select><select value={target} onChange={e=>setTarget(e.target.value)}><option value="todos">Recolhas e entregas</option><option value="recolha">Só recolhas</option><option value="entrega">Só entregas</option></select></div><label>Mensagem</label><textarea value={message} onChange={e=>setMessage(e.target.value)}/><div className="grid"><Stat title="Clientes encontrados" value={recipients.length}/><Stat title="Com WhatsApp" value={recipients.filter(c=>phoneToWhatsapp(c.phone)).length}/></div><button className="whatsapp" onClick={openAll}>Abrir WhatsApp para todos</button>{msg&&<div className="warning">{msg}</div>}<div className="scroll"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>Ação</th></tr></thead><tbody>{recipients.map(c=><tr key={c.id}><td>{c.client_number} - {c.name}</td><td>{c.phone}</td><td>{whatsappUrl(c.phone,message)?<button className="small-btn whatsapp" onClick={()=>window.open(whatsappUrl(c.phone,message),'_blank')}>WhatsApp</button>:<span className="badge">Sem contacto</span>}</td></tr>)}</tbody></table></div></div>
 }
 
-function History({orders,events}){return <section className="card"><h2>Histórico</h2><OrdersTable orders={orders} manager/><h3>Eventos</h3><div className="scroll"><table><thead><tr><th>Data</th><th>Encomenda</th><th>Utilizador</th><th>Evento</th><th>Estado</th></tr></thead><tbody>{events.map(e=><tr key={e.id}><td>{new Date(e.created_at).toLocaleString('pt-PT')}</td><td>{e.order_id}</td><td>{e.user_name}</td><td>{e.event_type}</td><td>{statusLabel[e.new_status]||e.new_status}</td></tr>)}</tbody></table></div></section>}
+function Reports({clients,orders}){
+ const month=new Date().toISOString().slice(0,7), monthOrders=orders.filter(o=>o.created_at?.slice(0,7)===month);
+ const byClient={}; monthOrders.forEach(o=>byClient[o.client_name]=(byClient[o.client_name]||0)+Number(o.pieces||0));
+ return <div className="card"><h2>Relatórios</h2><div className="grid"><Stat title="Peças no mês" value={monthOrders.reduce((s,o)=>s+Number(o.pieces||0),0)}/><Stat title="Encomendas no mês" value={monthOrders.length}/><Stat title="Clientes ativos" value={clients.filter(c=>c.active).length}/></div><h3>Top clientes do mês</h3><div className="scroll"><table><tbody>{Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,20).map(([k,v])=><tr key={k}><td>{k}</td><td>{v} peças</td></tr>)}</tbody></table></div></div>
+}
 
-function OrdersTable({orders,manager=false}){return <div className="scroll"><table><thead><tr><th>Nº Encomenda</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Data</th>{manager&&<th>Etiqueta</th>}</tr></thead><tbody>{orders.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]||o.status}</span></td><td>{new Date(o.created_at).toLocaleString('pt-PT')}</td>{manager&&<td><PrintLabelButton order={o}/></td>}</tr>)}{orders.length===0&&<tr><td colSpan={manager?6:5}>Sem encomendas.</td></tr>}</tbody></table></div>}
+function ClientPortal({user,orders}){const mine=orders.filter(o=>o.client_id===user.client_id);return <div className="card"><h2>Área do Cliente</h2><OrdersTable orders={mine}/></div>}
+function History({orders,events}){return <div className="card"><h2>Histórico</h2><OrdersTable orders={orders} manager/><h3>Eventos recentes</h3><div className="scroll"><table><tbody>{events.map(e=><tr key={e.id}><td>{new Date(e.created_at).toLocaleString('pt-PT')}</td><td>{e.user_name}</td><td>{statusLabel[e.new_status]||e.new_status}</td></tr>)}</tbody></table></div></div>}
+function Admin({users,clients}){return <div className="card"><h2>Administração</h2><div className="grid"><Stat title="Utilizadores" value={users.length}/><Stat title="Clientes" value={clients.length}/><Stat title="Motoristas" value={users.filter(u=>u.role==='motorista').length}/></div><h3>Utilizadores</h3><div className="scroll"><table><thead><tr><th>Código</th><th>Nome</th><th>Perfil</th><th>Estado</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td>{u.access_code}</td><td>{u.name}</td><td>{u.role}</td><td>{u.active?'Ativo':'Inativo'}</td></tr>)}</tbody></table></div></div>}
+
+function OrdersTable({orders,manager=false}){return <div className="scroll"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Data</th>{manager&&<th>Etiqueta</th>}</tr></thead><tbody>{orders.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]||o.status}</span></td><td>{new Date(o.created_at).toLocaleString('pt-PT')}</td>{manager&&<td><PrintLabelButton order={o}/></td>}</tr>)}{orders.length===0&&<tr><td colSpan={manager?6:5}>Sem registos.</td></tr>}</tbody></table></div>}
 
 function PrintLabelButton({order}){
-  const[qr,setQr]=useState('');
-  async function print(){
-    const data=await QRCode.toDataURL(order.qr_code||order.order_number);
-    setQr(data);
-    setTimeout(async()=>{
-      await supabase.rpc('mark_label_printed',{p_order_id:order.id});
-      window.print();
-    },200);
-  }
-  return <><button className="small-btn secondary" onClick={print}>Imprimir etiqueta</button>{qr&&<div className="label-preview print-label"><h2>Vincos & Agulha</h2><p><b>{order.order_number}</b></p><p>{order.client_name}</p><p>Peças: {order.pieces}</p><img src={qr} width="120" height="120"/><div className="qr">{order.qr_code}</div></div>}</>
+ const[qr,setQr]=useState('');
+ async function print(){const data=await QRCode.toDataURL(order.qr_code||order.order_number);setQr(data);setTimeout(async()=>{await supabase.rpc('mark_label_printed',{p_order_id:order.id});window.print()},200)}
+ return <><button className="small-btn secondary" onClick={print}>Etiqueta</button>{qr&&<div className="label-preview print-label"><h2>Vincos & Agulha</h2><p><b>{order.order_number}</b></p><p>{order.client_name}</p><p>Peças: {order.pieces}</p><img src={qr} width="120" height="120"/><div className="qr">{order.qr_code}</div></div>}</>
 }
 
 createRoot(document.getElementById('root')).render(<App/>);
