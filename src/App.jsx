@@ -1,447 +1,135 @@
-import React, { useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createClient } from '@supabase/supabase-js';
-import './styles.css';
+import React,{useEffect,useState}from'react';
+import{createRoot}from'react-dom/client';
+import{createClient}from'@supabase/supabase-js';
+import QRCode from'qrcode';
+import'./styles.css';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const hasConfig = Boolean(supabaseUrl && supabaseKey);
-const supabase = hasConfig ? createClient(supabaseUrl, supabaseKey) : null;
+const supabaseUrl=import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey=import.meta.env.VITE_SUPABASE_ANON_KEY;
+const hasConfig=Boolean(supabaseUrl&&supabaseKey);
+const supabase=hasConfig?createClient(supabaseUrl,supabaseKey):null;
 
-function Header() {
-  return (
-    <header>
-      <div className="logo">V&A</div>
-      <h1>Vincos & Agulha</h1>
-      <p>Gestão de produção para engomadoria</p>
-    </header>
-  );
-}
+const statusLabel={
+  recebido_cliente:'Recebido do cliente',
+  em_producao:'Em produção',
+  pronto_entrega:'Pronto para entrega',
+  entregue_cliente:'Entregue ao cliente'
+};
+const statusBadge={
+  recebido_cliente:'badge b1',
+  em_producao:'badge b2',
+  pronto_entrega:'badge b4',
+  entregue_cliente:'badge b3'
+};
 
-function MissingConfig() {
-  return (
-    <>
-      <Header />
-      <main>
-        <section className="card login">
-          <h2>Configuração em falta</h2>
-          <div className="error">
-            As variáveis do Supabase não estão configuradas na Vercel.
-          </div>
-          <p>Configure estas variáveis em <b>Vercel → Project Settings → Environment Variables</b>:</p>
-          <ul>
-            <li><b>VITE_SUPABASE_URL</b></li>
-            <li><b>VITE_SUPABASE_ANON_KEY</b></li>
-          </ul>
-          <p>Depois faça novo deploy.</p>
-        </section>
-      </main>
-    </>
-  );
-}
+function Header(){return <header><div className="logo">V&A</div><h1>Vincos & Agulha</h1><p>Versão 1.0 RC — Produção e encomendas</p></header>}
+function MissingConfig(){return <><Header/><main><section className="card login"><h2>Configuração em falta</h2><div className="error">Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel.</div></section></main></>}
 
-function Login({ onLogin }) {
-  const [code, setCode] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+function Login({onLogin}){const[code,setCode]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState('');
+async function submit(){setError('');const{data,error}=await supabase.rpc('login_user',{p_code:code,p_password:password});if(error){setError(error.message);return}if(!data||!data.length){setError('Código ou senha incorretos.');return}onLogin(data[0])}
+return <section className="card login"><h2>Entrar</h2><label>Código</label><input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/><label>Senha</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)}/><button onClick={submit}>Entrar</button><p className="muted">Gerente inicial: GER001 / 123456</p>{error&&<div className="warning">{error}</div>}</section>}
 
-  async function submit() {
-    setError('');
-    setLoading(true);
-    const { data, error } = await supabase.rpc('login_user', {
-      p_code: code,
-      p_password: password
-    });
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      setError('Código ou senha incorretos.');
-      return;
-    }
-
-    onLogin(data[0]);
-  }
-
-  return (
-    <section className="card login">
-      <h2>Entrar</h2>
-      <label>Código de acesso</label>
-      <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="Ex: GER001 ou F001" />
-      <label>Senha</label>
-      <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" />
-      <button onClick={submit} disabled={loading}>{loading ? 'A entrar...' : 'Entrar'}</button>
-      <p className="muted">Acesso inicial: <b>GER001</b> / <b>123456</b></p>
-      {error && <div className="warning">{error}</div>}
-    </section>
-  );
-}
-
-function ChangePassword({ user, onDone }) {
-  const [p1, setP1] = useState('');
-  const [p2, setP2] = useState('');
-  const [error, setError] = useState('');
-
-  async function submit() {
-    setError('');
-    if (p1.length < 4) {
-      setError('A senha deve ter pelo menos 4 caracteres.');
-      return;
-    }
-    if (p1 !== p2) {
-      setError('As senhas não coincidem.');
-      return;
-    }
-    const { error } = await supabase.rpc('change_password', {
-      p_user_id: user.id,
-      p_new_password: p1
-    });
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    onDone({ ...user, must_change_password: false });
-  }
-
-  return (
-    <section className="card login">
-      <h2>Alterar senha</h2>
-      <p><b>Bem-vindo, {user.name}.</b></p>
-      <div className="warning">Por segurança, altere a senha no primeiro acesso.</div>
-      <label>Nova senha</label>
-      <input type="password" value={p1} onChange={e => setP1(e.target.value)} />
-      <label>Confirmar senha</label>
-      <input type="password" value={p2} onChange={e => setP2(e.target.value)} />
-      <button onClick={submit}>Guardar nova senha</button>
-      {error && <div className="warning">{error}</div>}
-    </section>
-  );
-}
-
-function App() {
-  const [user, setUser] = useState(null);
-  const [tab, setTab] = useState('registar');
-  const [clients, setClients] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [loadError, setLoadError] = useState('');
-
-  async function load() {
-    setLoadError('');
-    const [c, u, r] = await Promise.all([
-      supabase.from('clients').select('*').order('name'),
-      supabase.from('app_users').select('id,name,access_code,role,active,must_change_password,created_at').order('created_at', { ascending: false }),
-      supabase.from('production_records').select('*').order('created_at', { ascending: false })
+function App(){
+  const[user,setUser]=useState(null),[tab,setTab]=useState('dashboard'),[clients,setClients]=useState([]),[orders,setOrders]=useState([]),[events,setEvents]=useState([]);
+  async function load(){
+    const[c,o,e]=await Promise.all([
+      supabase.from('clients').select('*').order('client_number'),
+      supabase.from('orders').select('*').order('created_at',{ascending:false}),
+      supabase.from('order_events').select('*').order('created_at',{ascending:false})
     ]);
-
-    if (c.error || u.error || r.error) {
-      setLoadError((c.error || u.error || r.error).message);
-      return;
-    }
-
-    setClients(c.data || []);
-    setUsers(u.data || []);
-    setRecords(r.data || []);
+    setClients(c.data||[]);setOrders(o.data||[]);setEvents(e.data||[]);
   }
-
-  useEffect(() => {
-    if (user) load();
-  }, [user]);
-
-  if (!hasConfig) return <MissingConfig />;
-  if (!user) return <><Header /><main><Login onLogin={setUser} /></main></>;
-  if (user.must_change_password) return <><Header /><main><ChangePassword user={user} onDone={setUser} /></main></>;
-
-  const manager = user.role === 'gerente';
-
-  return (
-    <>
-      <Header />
-      <main>
-        <section className="card">
-          <b>Sessão:</b> {user.name} | <b>Código:</b> {user.access_code} | <b>Perfil:</b> {user.role}
-          <button className="danger" onClick={() => setUser(null)} style={{ marginTop: 10 }}>Sair</button>
-        </section>
-
-        <div className="tabs">
-          <button onClick={() => setTab('registar')}>Registar Peças</button>
-          <button onClick={() => setTab('dashboard')}>Dashboard</button>
-          {manager && <button onClick={() => setTab('clientes')}>Clientes</button>}
-          {manager && <button onClick={() => setTab('funcionarios')}>Funcionários</button>}
-          <button onClick={() => setTab('historico')}>Histórico</button>
-        </div>
-
-        {loadError && <div className="error">Erro ao carregar dados: {loadError}</div>}
-
-        {tab === 'registar' && <Register user={user} clients={clients} load={load} />}
-        {tab === 'dashboard' && <Dashboard clients={clients} records={records} />}
-        {tab === 'clientes' && manager && <Clients clients={clients} load={load} />}
-        {tab === 'funcionarios' && manager && <Users users={users} manager={user} load={load} />}
-        {tab === 'historico' && <History records={records} />}
-
-        <div className="footer">Vincos & Agulha — Aplicação Online Final</div>
-      </main>
-    </>
-  );
+  useEffect(()=>{if(user)load()},[user]);
+  if(!hasConfig)return <MissingConfig/>;
+  if(!user)return <><Header/><main><Login onLogin={setUser}/></main></>;
+  const manager=user.role==='gerente', staff=user.role==='funcionario'||manager, driver=user.role==='motorista', client=user.role==='cliente';
+  return <><Header/><main><section className="card"><b>Sessão:</b> {user.name} | <b>Perfil:</b> {user.role}<button className="danger" onClick={()=>setUser(null)} style={{marginTop:10}}>Sair</button></section>
+  <div className="tabs">
+    {manager&&<button onClick={()=>setTab('dashboard')}>Dashboard</button>}
+    {staff&&<button onClick={()=>setTab('producao')}>Produção</button>}
+    {driver&&<button onClick={()=>setTab('motorista')}>Motorista</button>}
+    {client&&<button onClick={()=>setTab('cliente')}>Área do Cliente</button>}
+    {manager&&<button onClick={()=>setTab('historico')}>Histórico</button>}
+  </div>
+  {tab==='dashboard'&&manager&&<Dashboard orders={orders}/>}
+  {tab==='producao'&&staff&&<Production user={user} clients={clients} orders={orders} load={load}/>}
+  {tab==='motorista'&&driver&&<DriverPanel user={user} clients={clients} orders={orders} load={load}/>}
+  {tab==='cliente'&&client&&<ClientPortal user={user} orders={orders}/>}
+  {tab==='historico'&&manager&&<History orders={orders} events={events}/>}
+  <div className="footer">Vincos & Agulha — V1.0 RC</div></main></>
 }
 
-function Register({ user, clients, load }) {
-  const [clientId, setClientId] = useState('');
-  const [pieces, setPieces] = useState('');
-  const [notes, setNotes] = useState('');
-  const [notice, setNotice] = useState('');
+function Dashboard({orders}){
+  const today=new Date().toISOString().slice(0,10);
+  const todayOrders=orders.filter(o=>o.created_at?.slice(0,10)===today);
+  return <section className="card"><h2>Dashboard</h2><div className="grid"><Stat title="Encomendas hoje" value={todayOrders.length}/><Stat title="Peças hoje" value={todayOrders.reduce((s,o)=>s+Number(o.pieces||0),0)}/><Stat title="Em produção" value={orders.filter(o=>o.status==='em_producao').length}/><Stat title="Prontas" value={orders.filter(o=>o.status==='pronto_entrega').length}/><Stat title="Entregues" value={orders.filter(o=>o.status==='entregue_cliente').length}/></div><h3>Últimas encomendas</h3><OrdersTable orders={orders.slice(0,15)} manager/></section>
+}
+function Stat({title,value}){return <div className="card"><div className="muted">{title}</div><div className="stat">{value}</div></div>}
 
-  async function save() {
-    setNotice('');
-    const client = clients.find(c => c.id === clientId);
-    if (!client) {
-      setNotice('Selecione o cliente.');
-      return;
-    }
-    if (!Number(pieces) || Number(pieces) < 1) {
-      setNotice('Indique um número válido de peças.');
-      return;
-    }
+function Production({user,clients,orders,load}){
+  const[clientId,setClientId]=useState(''),[pieces,setPieces]=useState(''),[notes,setNotes]=useState(''),[msg,setMsg]=useState('');
+  async function create(){
+    setMsg('');
+    if(!clientId)return setMsg('Selecione o cliente.');
+    if(!Number(pieces)||Number(pieces)<1)return setMsg('Indique o número total de peças.');
+    const{error}=await supabase.rpc('create_order',{p_user_id:user.id,p_client_id:clientId,p_pieces:Number(pieces),p_notes:notes});
+    if(error){setMsg(error.message);return}
+    setClientId('');setPieces('');setNotes('');setMsg('Encomenda criada e colocada em produção.');load();
+  }
+  async function setStatus(orderId,status){
+    const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:orderId,p_new_status:status,p_notes:null});
+    if(error)return alert(error.message);load();
+  }
+  return <section className="card"><h2>Produção</h2><div className="row"><div><label>Cliente</label><select value={clientId} onChange={e=>setClientId(e.target.value)}><option value="">Selecionar cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.client_number} - {c.name}</option>)}</select></div><div><label>Número total de peças</label><input type="number" value={pieces} onChange={e=>setPieces(e.target.value)}/></div></div><label>Observações</label><textarea value={notes} onChange={e=>setNotes(e.target.value)}/><button onClick={create}>Guardar encomenda</button>{msg&&<div className={msg.includes('criada')?'success':'warning'}>{msg}</div>}<h3>Encomendas em produção/prontas</h3><div className="scroll"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Ações</th></tr></thead><tbody>{orders.filter(o=>['em_producao','pronto_entrega'].includes(o.status)).map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]}</span></td><td>{o.status==='em_producao'&&<button className="small-btn ok" onClick={()=>setStatus(o.id,'pronto_entrega')}>Pronto para entrega</button>}<PrintLabelButton order={o}/></td></tr>)}</tbody></table></div></section>
+}
 
-    const { error } = await supabase.from('production_records').insert({
-      client_id: client.id,
-      client_name: client.name,
-      user_id: user.id,
-      user_name: user.name,
-      user_code: user.access_code,
-      pieces: Number(pieces),
-      notes
+function DriverPanel({user,clients,orders,load}){
+  const myClients=clients.filter(c=>c.driver_id===user.id);
+  const pendingPickup=myClients.map(c=>({client:c,order:orders.find(o=>o.client_id===c.id&&o.status!=='entregue_cliente')})).filter(x=>!x.order);
+  const ready=orders.filter(o=>o.status==='pronto_entrega'&&myClients.some(c=>c.id===o.client_id));
+  async function createPickup(client){
+    const{error}=await supabase.from('orders').insert({
+      order_number:`TEMP-${Date.now()}`,
+      tracking_code:`TEMP-${Date.now()}`,
+      qr_code:`TEMP-${Date.now()}`,
+      client_id:client.id,
+      client_number:client.client_number,
+      client_name:client.name,
+      driver_id:user.id,
+      driver_name:user.name,
+      pieces:0,
+      status:'recebido_cliente',
+      picked_up_at:new Date().toISOString()
     });
-
-    if (error) {
-      setNotice(error.message);
-      return;
-    }
-
-    setPieces('');
-    setNotes('');
-    setNotice('Registo guardado com sucesso.');
-    await load();
+    if(error)return alert(error.message);load();
   }
-
-  return (
-    <section className="card">
-      <h2>Registar peças passadas</h2>
-      <p><b>Funcionário:</b> {user.name}</p>
-      <label>Cliente</label>
-      <select value={clientId} onChange={e => setClientId(e.target.value)}>
-        <option value="">Selecionar cliente</option>
-        {clients.filter(c => c.active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-      <label>Número de peças</label>
-      <input type="number" min="1" value={pieces} onChange={e => setPieces(e.target.value)} placeholder="Ex: 125" />
-      <label>Observações</label>
-      <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opcional" />
-      <button onClick={save}>Guardar</button>
-      {notice && <div className={notice.includes('sucesso') ? 'success' : 'warning'}>{notice}</div>}
-    </section>
-  );
+  async function deliver(order){
+    const{error}=await supabase.rpc('update_order_status',{p_user_id:user.id,p_order_id:order.id,p_new_status:'entregue_cliente',p_notes:null});
+    if(error)return alert(error.message);load();
+  }
+  return <section className="card"><h2>Motorista</h2><div className="grid"><Stat title="Por recolher" value={pendingPickup.length}/><Stat title="Para entregar" value={ready.length}/></div><h3>Recolhas</h3><div className="scroll"><table><thead><tr><th>Cliente</th><th>Morada</th><th>Ação</th></tr></thead><tbody>{pendingPickup.map(({client})=><tr key={client.id}><td>{client.client_number} - {client.name}</td><td>{client.address}</td><td><button className="small-btn ok" onClick={()=>createPickup(client)}>Recebido do cliente</button></td></tr>)}</tbody></table></div><h3>Entregas</h3><div className="scroll"><table><thead><tr><th>Encomenda</th><th>Cliente</th><th>Peças</th><th>Ação</th></tr></thead><tbody>{ready.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><button className="small-btn ok" onClick={()=>deliver(o)}>Entregue ao cliente</button></td></tr>)}</tbody></table></div></section>
 }
 
-function Dashboard({ clients, records }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const month = new Date().toISOString().slice(0, 7);
-  const totalToday = records.filter(r => r.created_at.slice(0, 10) === today).reduce((s, r) => s + r.pieces, 0);
-  const totalMonth = records.filter(r => r.created_at.slice(0, 7) === month).reduce((s, r) => s + r.pieces, 0);
-  const total = records.reduce((s, r) => s + r.pieces, 0);
-
-  const byClient = {};
-  const byUser = {};
-  records.forEach(r => {
-    byClient[r.client_name] = (byClient[r.client_name] || 0) + r.pieces;
-    byUser[r.user_name] = (byUser[r.user_name] || 0) + r.pieces;
-  });
-
-  return (
-    <section className="card">
-      <h2>Dashboard</h2>
-      <div className="grid">
-        <Stat title="Peças hoje" value={totalToday} />
-        <Stat title="Peças no mês" value={totalMonth} />
-        <Stat title="Total geral" value={total} />
-        <Stat title="Clientes ativos" value={clients.filter(c => c.active).length} />
-      </div>
-      <h3>Produção por cliente</h3>
-      <Table rows={Object.entries(byClient).sort((a, b) => b[1] - a[1])} />
-      <h3>Produção por funcionário</h3>
-      <Table rows={Object.entries(byUser).sort((a, b) => b[1] - a[1])} />
-    </section>
-  );
+function ClientPortal({user,orders}){
+  const mine=orders.filter(o=>o.client_id===user.client_id);
+  return <section className="card"><h2>Área do Cliente</h2><OrdersTable orders={mine}/></section>
 }
 
-function Stat({ title, value }) {
-  return <div className="card"><div className="muted">{title}</div><div className="stat">{value}</div></div>;
+function History({orders,events}){return <section className="card"><h2>Histórico</h2><OrdersTable orders={orders} manager/><h3>Eventos</h3><div className="scroll"><table><thead><tr><th>Data</th><th>Encomenda</th><th>Utilizador</th><th>Evento</th><th>Estado</th></tr></thead><tbody>{events.map(e=><tr key={e.id}><td>{new Date(e.created_at).toLocaleString('pt-PT')}</td><td>{e.order_id}</td><td>{e.user_name}</td><td>{e.event_type}</td><td>{statusLabel[e.new_status]||e.new_status}</td></tr>)}</tbody></table></div></section>}
+
+function OrdersTable({orders,manager=false}){return <div className="scroll"><table><thead><tr><th>Nº Encomenda</th><th>Cliente</th><th>Peças</th><th>Estado</th><th>Data</th>{manager&&<th>Etiqueta</th>}</tr></thead><tbody>{orders.map(o=><tr key={o.id}><td>{o.order_number}</td><td>{o.client_name}</td><td>{o.pieces}</td><td><span className={statusBadge[o.status]}>{statusLabel[o.status]||o.status}</span></td><td>{new Date(o.created_at).toLocaleString('pt-PT')}</td>{manager&&<td><PrintLabelButton order={o}/></td>}</tr>)}{orders.length===0&&<tr><td colSpan={manager?6:5}>Sem encomendas.</td></tr>}</tbody></table></div>}
+
+function PrintLabelButton({order}){
+  const[qr,setQr]=useState('');
+  async function print(){
+    const data=await QRCode.toDataURL(order.qr_code||order.order_number);
+    setQr(data);
+    setTimeout(async()=>{
+      await supabase.rpc('mark_label_printed',{p_order_id:order.id});
+      window.print();
+    },200);
+  }
+  return <><button className="small-btn secondary" onClick={print}>Imprimir etiqueta</button>{qr&&<div className="label-preview print-label"><h2>Vincos & Agulha</h2><p><b>{order.order_number}</b></p><p>{order.client_name}</p><p>Peças: {order.pieces}</p><img src={qr} width="120" height="120"/><div className="qr">{order.qr_code}</div></div>}</>
 }
 
-function Table({ rows }) {
-  return (
-    <div className="scroll">
-      <table>
-        <tbody>
-          {rows.length === 0 && <tr><td>Sem dados ainda</td><td>0</td></tr>}
-          {rows.map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Clients({ clients, load }) {
-  const [form, setForm] = useState({ name: '', phone: '', address: '', notes: '' });
-
-  async function create() {
-    if (!form.name) return alert('Indique o nome do cliente.');
-    const { error } = await supabase.from('clients').insert(form);
-    if (error) return alert(error.message);
-    setForm({ name: '', phone: '', address: '', notes: '' });
-    load();
-  }
-
-  async function toggle(id) {
-    const { error } = await supabase.rpc('toggle_client_active', { p_client_id: id });
-    if (error) return alert(error.message);
-    load();
-  }
-
-  return (
-    <section className="card">
-      <h2>Gestão de clientes</h2>
-      <div className="row">
-        <div><label>Nome</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-        <div><label>Telefone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-      </div>
-      <label>Morada</label>
-      <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-      <label>Observações</label>
-      <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-      <button onClick={create}>Criar cliente</button>
-      <div className="scroll">
-        <table>
-          <thead><tr><th>Cliente</th><th>Telefone</th><th>Morada</th><th>Estado</th><th>Ações</th></tr></thead>
-          <tbody>
-            {clients.map(c => (
-              <tr key={c.id}>
-                <td>{c.name}</td><td>{c.phone}</td><td>{c.address}</td><td>{c.active ? 'Ativo' : 'Inativo'}</td>
-                <td><button className="small-btn secondary" onClick={() => toggle(c.id)}>{c.active ? 'Inativar' : 'Ativar'}</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function Users({ users, manager, load }) {
-  const [form, setForm] = useState({ name: '', code: '', password: '', role: 'funcionario' });
-
-  async function create() {
-    if (!form.name || !form.code || !form.password) return alert('Preencha nome, código e senha inicial.');
-    const { error } = await supabase.rpc('create_app_user', {
-      p_manager_id: manager.id,
-      p_name: form.name,
-      p_code: form.code,
-      p_temp_password: form.password,
-      p_role: form.role
-    });
-    if (error) return alert(error.message);
-    setForm({ name: '', code: '', password: '', role: 'funcionario' });
-    load();
-  }
-
-  async function reset(id) {
-    const p = prompt('Nova senha temporária:');
-    if (!p) return;
-    const { error } = await supabase.rpc('reset_user_password', {
-      p_manager_id: manager.id,
-      p_user_id: id,
-      p_temp_password: p
-    });
-    if (error) return alert(error.message);
-    alert('Senha reposta. O funcionário terá de alterar no próximo acesso.');
-    load();
-  }
-
-  async function toggle(id) {
-    const { error } = await supabase.rpc('toggle_user_active', {
-      p_manager_id: manager.id,
-      p_user_id: id
-    });
-    if (error) return alert(error.message);
-    load();
-  }
-
-  return (
-    <section className="card">
-      <h2>Gestão de funcionários</h2>
-      <div className="row">
-        <div><label>Nome</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-        <div><label>Código</label><input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} /></div>
-      </div>
-      <div className="row">
-        <div><label>Senha inicial</label><input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
-        <div><label>Perfil</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="funcionario">Funcionário</option><option value="gerente">Gerente</option></select></div>
-      </div>
-      <button onClick={create}>Criar funcionário</button>
-      <div className="scroll">
-        <table>
-          <thead><tr><th>Código</th><th>Nome</th><th>Perfil</th><th>Ativo</th><th>Primeiro acesso</th><th>Ações</th></tr></thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.access_code}</td><td>{u.name}</td><td>{u.role}</td><td>{u.active ? 'Sim' : 'Não'}</td><td>{u.must_change_password ? 'Sim' : 'Não'}</td>
-                <td>
-                  <button className="small-btn secondary" onClick={() => reset(u.id)}>Repor senha</button>
-                  {u.access_code !== 'GER001' && <button className="small-btn secondary" onClick={() => toggle(u.id)}>{u.active ? 'Inativar' : 'Ativar'}</button>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function History({ records }) {
-  function exportCSV() {
-    const lines = [['Data', 'Cliente', 'Funcionario', 'Codigo', 'Pecas', 'Observacoes']];
-    records.forEach(r => lines.push([new Date(r.created_at).toLocaleString('pt-PT'), r.client_name, r.user_name, r.user_code, r.pieces, r.notes || '']));
-    const csv = lines.map(l => l.map(v => `"${String(v).replaceAll('"', '""')}"`).join(';')).join('\\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    a.download = 'vincos_agulha_registos.csv';
-    a.click();
-  }
-
-  return (
-    <section className="card">
-      <h2>Histórico</h2>
-      <button onClick={exportCSV}>Exportar CSV/Excel</button>
-      <div className="scroll">
-        <table>
-          <thead><tr><th>Data</th><th>Cliente</th><th>Funcionário</th><th>Código</th><th>Peças</th><th>Observações</th></tr></thead>
-          <tbody>
-            {records.map(r => (
-              <tr key={r.id}>
-                <td>{new Date(r.created_at).toLocaleString('pt-PT')}</td><td>{r.client_name}</td><td>{r.user_name}</td><td>{r.user_code}</td><td>{r.pieces}</td><td>{r.notes}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(<App/>);

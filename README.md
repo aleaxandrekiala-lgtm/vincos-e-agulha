@@ -1,33 +1,28 @@
-# Vincos & Agulha — Versão Final
+# Vincos & Agulha — Versão 1.0 RC
 
-Aplicação online para gestão de produção de engomadoria.
+Inclui:
+- Encomendas.
+- Número automático de encomenda.
+- Estados simples:
+  - Recebido do cliente
+  - Em produção
+  - Pronto para entrega
+  - Entregue ao cliente
+- Motorista: apenas recebido do cliente / entregue ao cliente.
+- Funcionário: regista cliente + número total de peças.
+- Cliente: vê estado e histórico.
+- Gerente: vê tudo.
+- QR Code preparado.
+- Botão imprimir etiqueta em papel/PDF.
+- Campos preparados para impressora de etiquetas no futuro.
 
-## Funcionalidades
+## Antes de publicar
+Execute no Supabase:
+supabase/schema_v1_rc.sql
 
-- Login por código e senha
-- Gerente cria clientes
-- Gerente cria funcionários
-- Código de acesso e senha temporária
-- Alteração obrigatória de senha no primeiro acesso
-- Registo de número de peças por cliente
-- Dashboard
-- Produção por cliente
-- Produção por funcionário
-- Histórico
-- Exportação CSV/Excel
-
-## Acesso inicial
-
-Código: GER001  
-Senha: 123456
-
-## Publicação
-
-Framework: Vite  
-Build command: npm run build  
-Output directory: dist
-
-## Variáveis de ambiente na Vercel
-
-VITE_SUPABASE_URL  
-VITE_SUPABASE_ANON_KEY
+## Publicar
+Copie os ficheiros para o projeto local e execute:
+npm install
+git add .
+git commit -m "Versao 1 RC encomendas QR"
+git push
